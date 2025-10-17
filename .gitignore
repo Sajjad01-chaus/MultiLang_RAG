@@ -1,0 +1,70 @@
+# Large local directories
+.git/
+__pycache__/
+*.ipynb_checkpoints/
+.qdrant/
+.qdrant_data/
+__pycache__/
+*.zip
+*.tar
+*.tar.gz
+*.pkl
+*.pt
+*.bin
+*.onnx
+*.h5
+models/
+data/
+datasets/
+artifacts/
+.cache/
+.tmp/
+logs/
+uploads/
+
+# Ignore the virtual environment folder
+/myvenv/
+venv/
+.venv/
+
+# --- Python Cache & Dependencies ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- IDE & Editor Folders ---
+.vscode/
+.idea/
+
+# --- Local Data and Models ---
+# Qdrant local storage
+.qdrant/
+.qdrant_data/
+
+# Downloaded models or large data files
+models/
+data/
+datasets/
+artifacts/
+.cache/
+
+# --- Environment Variables ---
+# Never commit your secrets!
+.env
+
+# --- Operating System Files ---
+# Mac
+.DS_Store
+# Windows
+Thumbs.db
+
+# --- Log & Upload Folders ---
+logs/
+uploads/
+*.log
+
+# --- Build & Packaging ---
+dist/
+build/
+*.egg-info/

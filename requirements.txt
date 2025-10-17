@@ -1,0 +1,24 @@
+# Core
+fastapi
+uvicorn
+pydantic
+celery
+redis
+qdrant-client==1.9.1
+pytesseract
+pdfminer.six
+pdf2image
+pillow
+langdetect
+paddleocr
+sentence-transformers
+rank-bm25
+streamlit
+numpy
+scikit-learn
+nltk
+tqdm
+pandas
+textstat 
+transformers
+torch
