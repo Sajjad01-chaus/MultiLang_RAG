@@ -1,155 +1,36 @@
-# Mini RAG Document QA System
+🧠 Multilingual RAG PDF Question Answering SystemAn intelligent document retrieval system that uses Retrieval-Augmented Generation (RAG) to answer questions from PDF documents in 50+ languages, running entirely on your local machine.✨ Core Features📄 PDF Ingestion: Upload and process both digital and scanned PDFs with automatic OCR.🌍 Multilingual: Natively handles 50+ languages (e.g., English, Hindi, Bengali, Chinese).🔍 Hybrid Search: Combines semantic (vector) and keyword (BM25) search for high accuracy.🤖 Local & Private: Uses a local LLM (flan-t5-base) for answer generation. No API keys or data ever leave your machine.🚀 Quick Start1. PrerequisitesPython 3.8+Tesseract OCR (see installation guide and ensure it's in your system's PATH)2. Setup# Clone the repository
+git clone [https://github.com/Sajjad01-chaus/MultiLang_RAG.git](https://github.com/Sajjad01-chaus/MultiLang_RAG.git)
+cd MultiLang_RAG
 
-A FastAPI-based RAG (Retrieval-Augmented Generation) system for PDF document question-answering using HuggingFace API.
+# Create and activate a virtual environment
+python -m venv myvenv
+# Windows:
+myvenv\Scripts\activate
+# Mac/Linux:
+source myvenv/bin/activate
 
-## 🚀 Features
-
-- **PDF Upload & Processing**: Upload PDF documents with OCR support
-- **RAG Pipeline**: Advanced retrieval and generation using vector search
-- **HuggingFace Integration**: Uses HuggingFace Inference API for LLM responses
-- **Web Interface**: Streamlit-based UI for easy interaction
-- **Docker Support**: Complete containerization with Docker Compose
-
-## 🏗️ Architecture
-
-- **FastAPI Backend**: REST API for document processing and queries
-- **Qdrant Vector DB**: Vector storage and similarity search
-- **Redis + Celery**: Background task processing
-- **Streamlit UI**: Web interface for user interaction
-- **HuggingFace API**: LLM inference for answer generation
-
-## 📋 Prerequisites
-
-- Docker & Docker Compose
-- HuggingFace API Key
-
-## 🛠️ Setup Instructions
-
-### 1. Clone the Repository
-```bash
-git clone <repository-url>
-cd Cerebralzip
-```
-
-### 2. Configure Environment Variables
-```bash
-# Copy the environment template
-cp .env.example .env
-
-# Edit .env file and add your HuggingFace API key
-HF_API_KEY=your_huggingface_api_key_here
-```
-
-### 3. Build and Run
-```bash
-docker-compose up --build
-```
-
-## 🌐 Access Points
-
-- **FastAPI API**: http://localhost:8000
-- **Streamlit UI**: http://localhost:8501
-- **API Documentation**: http://localhost:8000/docs
-
-## 📚 API Endpoints
-
-### Upload Document
-```bash
-POST /ingest
-Content-Type: multipart/form-data
-
-# Upload a PDF file
-curl -X POST "http://localhost:8000/ingest" \
-     -F "file=@document.pdf" \
-     -F "language=en"
-```
-
-### Query Document
-```bash
-POST /query
-Content-Type: application/json
-
-{
-  "query": "What is the main topic of this document?"
-}
-```
-
-### Health Check
-```bash
-GET /health
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-- `HF_API_KEY`: Your HuggingFace API key (required)
-- `SMALL_LLM_MODEL`: HuggingFace model to use (default: microsoft/DialoGPT-medium)
-- `QDRANT_URL`: Qdrant vector database URL
-- `REDIS_URL`: Redis URL for task queue
-- `EMBED_MODEL`: Sentence transformer model for embeddings
-
-### Models Used
-- **LLM**: microsoft/DialoGPT-medium (via HuggingFace API)
-- **Embeddings**: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-- **Vector DB**: Qdrant
-
-## 🔒 Security Notes
-
-- `.env` file is gitignored and contains sensitive API keys
-- Never commit API keys to version control
-- Use environment variables for all sensitive configuration
-
-## 📁 Project Structure
-
-```
-├── app/                    # FastAPI application
-│   ├── app.py             # Main API endpoints
-│   ├── llm_utils.py       # HuggingFace API integration
-│   ├── ingest.py          # Document processing
-│   ├── retrieve.py        # Vector search
-│   └── ...
-├── UI/                    # Streamlit interface
-│   └── app.py
-├── workers/               # Celery background tasks
-├── docker-compose.yaml    # Container orchestration
-├── Dockerfile            # Container definition
-├── requirements.txt      # Python dependencies
-└── .env.example         # Environment template
-```
-
-## 🚀 Usage
-
-1. **Upload a PDF**: Use the Streamlit UI or API to upload documents
-2. **Ask Questions**: Query the uploaded documents using natural language
-3. **Get Answers**: Receive contextual answers with source citations
-
-## 🔧 Development
-
-### Local Development
-```bash
 # Install dependencies
 pip install -r requirements.txt
 
-# Run FastAPI
-uvicorn app.app:app --reload
-
-# Run Streamlit
-streamlit run UI/app.py
-```
-
-### Docker Development
-```bash
-# Build and run all services
-docker-compose up --build
-
-# Run specific service
-docker-compose up fastapi
-```
-
-## 📝 License
-
-This project is for educational/assignment purposes.
-
-## 🤝 Contributing
-
-This is an assignment submission. Please follow the assignment guidelines for any modifications.
+# Download necessary NLTK data
+python -c "import nltk; nltk.download('punkt')"
+3. ConfigurationCreate a .env file in the root directory and add the following configuration. This is the recommended setup for local use.# .env
+EMBED_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+SMALL_LLM_MODEL=google/flan-t5-base
+QDRANT_COLLECTION=pdf_chunks
+4. Run the ApplicationStart the FastAPI backend server. The first time you run this, it will download the language models (this may take a few minutes).uvicorn app.app:app --reload
+The API will be available at http://127.0.0.1:8000.📖 Basic Usage (API)1. Ingest a PDFSend a POST request to /ingest with your PDF file.Example:curl -X POST "[http://127.0.0.1:8000/ingest](http://127.0.0.1:8000/ingest)" -F "file=@/path/to/your/document.pdf"
+Response:{
+  "status": "success",
+  "doc_id": "c14b9884-1b10-4090-9ac5-37584cbca3a7",
+  "chunks": 4,
+  ...
+}
+2. Ask a QuestionSend a POST request to /query with your question.Example:curl -X POST "[http://127.0.0.1:8000/query](http://127.0.0.1:8000/query)" \
+     -H "Content-Type: application/json" \
+     -d '{"query": "What is the main topic of this document?"}'
+Response:{
+    "answer": "The document is a No Objection Certificate (NOC) for obtaining an e-passport...",
+    "provenance": [ ... ],
+    ...
+}
