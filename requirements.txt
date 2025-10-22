@@ -10,6 +10,7 @@ pdfminer.six
 pdf2image
 pillow
 langdetect
+paddlepaddle
 paddleocr
 sentence-transformers
 rank-bm25
@@ -22,3 +23,8 @@ pandas
 textstat 
 transformers
 torch
+openai
+python-dotenv
+python-multipart
+tesseract
+huggingface_hub

@@ -68,3 +68,9 @@ uploads/
 dist/
 build/
 *.egg-info/
+
+evaluation_config.json
+performance_report.json
+sample_pdfs/
+qdrant_storage/
+

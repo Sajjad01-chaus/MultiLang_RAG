@@ -1,4 +1,3 @@
-# app/ingest.py
 import os
 import uuid
 import time
@@ -8,11 +7,10 @@ from app.extract import extract_text_from_pdf
 from app.chunker import smart_chunk_text
 from app.indexer import ensure_collection, embed_and_upsert
 from app.bm25_search import get_bm25_index
-from app.db import get_model, get_qdrant  # ✅ Import shared instances
-
+from app.db import get_model, get_qdrant
 
 def ingest_pdf(path: str, doc_id: str = None, lang_hint: str = None) -> Dict[str, Any]:
-    """End-to-end ingestion with debugging output."""
+    """End-to-end ingestion with corrected error handling for scanned documents."""
     start = time.time()
     if not doc_id:
         doc_id = str(uuid.uuid4())
@@ -22,47 +20,36 @@ def ingest_pdf(path: str, doc_id: str = None, lang_hint: str = None) -> Dict[str
 
     # Get shared instances
     model = get_model()
-    qdrant = get_qdrant()
     bm25 = get_bm25_index()
 
-    # 1️⃣ Extract text
+    # 1. Extract text
     try:
         pages = extract_text_from_pdf(path, lang_hint=lang_hint)
         if not pages:
-            print("[ERROR] extract_text_from_pdf returned None or empty dict.")
+            print("[ERROR] extract_text_from_pdf returned an empty dictionary.")
             return {
-                "status": "error",
-                "message": "No text/pages found during extraction.",
-                "doc_id": doc_id,
-                "chunks": 0,
-                "pages_processed": 0,
-                "seconds": round(time.time() - start, 2)
-            }
-        if not isinstance(pages, dict):
-            print(f"[ERROR] extract_text_from_pdf returned type: {type(pages)}")
-            return {
-                "status": "error", 
-                "message": "Invalid extraction output type.",
-                "doc_id": doc_id,
-                "chunks": 0,
-                "pages_processed": 0,
+                "status": "error", "message": "No text could be extracted from the document.",
+                "doc_id": doc_id, "chunks": 0, "pages_processed": 0,
                 "seconds": round(time.time() - start, 2)
             }
         print(f"[EXTRACT] Extracted {len(pages)} pages.")
+
+    # ✅ THIS IS THE FIX:
+    # We specifically catch the ValueError from extract.py and immediately re-raise it.
+    # This allows the error to "pass through" this function and be caught by the API endpoint in app.py.
+    except ValueError as e:
+        # Re-raise the specific error so the frontend can get the correct message.
+        raise e
     except Exception as e:
-        print(f"[EXTRACT ERROR] {e}")
-        import traceback
-        traceback.print_exc()
+        # This will now only catch other, unexpected extraction errors.
+        print(f"[FATAL INGEST ERROR] {e}")
         return {
-            "status": "error", 
-            "message": f"Extraction failed: {str(e)}",
-            "doc_id": doc_id,
-            "chunks": 0,
-            "pages_processed": 0,
+            "status": "error", "message": f"An unexpected error occurred during extraction: {str(e)}",
+            "doc_id": doc_id, "chunks": 0, "pages_processed": 0,
             "seconds": round(time.time() - start, 2)
         }
 
-    # 2️⃣ Chunk text
+    # 2. Chunk text
     all_chunks: List[Dict[str, Any]] = []
     try:
         for page_num, meta in pages.items():
@@ -74,11 +61,10 @@ def ingest_pdf(path: str, doc_id: str = None, lang_hint: str = None) -> Dict[str
                 doc_id=doc_id,
                 page_num=page_num,
                 text=text,
-                max_tokens=400,
-                overlap_tokens=50
+                max_tokens=8000, # Increased for bge-m3 model
+                overlap_tokens=100
             )
-            if chunks is None:
-                print(f"[ERROR] smart_chunk_text returned None for page {page_num}")
+            if not chunks:
                 continue
 
             for c in chunks:
@@ -89,28 +75,20 @@ def ingest_pdf(path: str, doc_id: str = None, lang_hint: str = None) -> Dict[str
         print(f"[CHUNK] Created {len(all_chunks)} chunks total.")
     except Exception as e:
         print(f"[CHUNK ERROR] {e}")
-        import traceback
-        traceback.print_exc()
         return {
-            "status": "error", 
-            "message": f"Chunking failed: {str(e)}",
-            "doc_id": doc_id,
-            "chunks": 0,
-            "pages_processed": len(pages),
+            "status": "error", "message": f"Chunking failed: {e}",
+            "doc_id": doc_id, "chunks": 0, "pages_processed": len(pages),
             "seconds": round(time.time() - start, 2)
         }
 
     if not all_chunks:
         return {
-            "status": "warning", 
-            "message": "No valid text chunks created.", 
-            "doc_id": doc_id,
-            "chunks": 0,
-            "pages_processed": len(pages),
+            "status": "warning", "message": "No valid text chunks were created from the document.",
+            "doc_id": doc_id, "chunks": 0, "pages_processed": len(pages),
             "seconds": round(time.time() - start, 2)
         }
 
-    # 3️⃣ Index
+    # 3. Index
     try:
         dim = model.get_sentence_embedding_dimension()
         ensure_collection(dim)
@@ -118,13 +96,9 @@ def ingest_pdf(path: str, doc_id: str = None, lang_hint: str = None) -> Dict[str
         chunk_texts = [c["text"] for c in all_chunks]
         metadata_list = [
             {
-                "id": c["chunk_id"],
-                "doc_id": c["doc_id"],
-                "page": c["page"],
-                "language": c["language"],
-                "source": c["source"],
-                "is_scanned": c["is_scanned"],
-                "text": c["text"]
+                "id": c["chunk_id"], "doc_id": c["doc_id"], "page": c["page"],
+                "language": c["language"], "source": c["source"],
+                "is_scanned": c["is_scanned"], "text": c["text"]
             }
             for c in all_chunks
         ]
@@ -134,14 +108,9 @@ def ingest_pdf(path: str, doc_id: str = None, lang_hint: str = None) -> Dict[str
         print(f"[INDEX] Indexed {len(all_chunks)} chunks in Qdrant + BM25.")
     except Exception as e:
         print(f"[INDEX ERROR] {e}")
-        import traceback
-        traceback.print_exc()
         return {
-            "status": "error", 
-            "message": f"Indexing failed: {str(e)}",
-            "doc_id": doc_id,
-            "chunks": 0,
-            "pages_processed": len(pages),
+            "status": "error", "message": f"Indexing failed: {e}",
+            "doc_id": doc_id, "chunks": 0, "pages_processed": len(pages),
             "seconds": round(time.time() - start, 2)
         }
 
@@ -149,10 +118,8 @@ def ingest_pdf(path: str, doc_id: str = None, lang_hint: str = None) -> Dict[str
     print(f"[DONE] Completed ingestion in {elapsed:.2f}s ✅")
 
     return {
-        "status": "success",
-        "doc_id": doc_id,
-        "chunks": len(all_chunks),
-        "pages_processed": len(pages),
-        "seconds": round(elapsed, 2),
+        "status": "success", "doc_id": doc_id, "chunks": len(all_chunks),
+        "pages_processed": len(pages), "seconds": round(elapsed, 2),
         "message": f"Indexed {len(all_chunks)} chunks from {len(pages)} pages."
     }
+
